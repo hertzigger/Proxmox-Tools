@@ -227,3 +227,7 @@ The default config name is config.json but you can pass in a configuration file 
     Not up yet, retrying
     Not up yet, retrying
     Host is responding to pings. Instance created successfully.
+
+##Notices
+
+Please use this at your own risk, I'm not responsible for any damages that may arise from using this. You should read the code first and understand it.
