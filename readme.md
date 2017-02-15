@@ -30,7 +30,7 @@ Clone the repository to any server that is able to ssh to the host, the server c
 
 Install globally
 
-    #cp clone /usr/local/bin/clone
+    #cp clone.rb /usr/local/bin/clone
 
 ##Configuration
 
@@ -40,7 +40,7 @@ Install globally
 
 To be able to change the ip address within the file system before starting the new virtual machine. The script needs to mount the filesystem on the hosting machine. So this section is the ssh details for the host machine. There will be the option to run it locally in the future by changing local to true. But this hasn't been implemented as I don't need it. 
 
-Password login isn't supported at the moment so you need to make sure your user can ssh to the host machine and it can mount, unmount and access the var/lib/vz/ directory on the host machine. 
+Password login isn't supported at the moment so you need to make sure your user can ssh to the host with keys and it can mount, unmount and access the var/lib/vz/ directory on the host machine. 
 
     "mount": {
         "local": false,
