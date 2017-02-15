@@ -1,0 +1,66 @@
+{
+  "mount": {
+    "local": false,
+    "host": "172.16.0.1",
+    "username": "username"
+  },
+  "proxmox_api": {
+    "address": "127.0.0.1",
+    "port": "8006",
+    "version": "api2",
+    "type": "json",
+    "username": "username",
+    "password": "password"
+  },
+  "instance": {
+    "name": "test",
+    "description": "this is a test instance",
+    "storage": "",
+    "vmid": "125",
+    "node": "h2",
+    "format": "qcow2",
+    "full": true,
+    "ips": [
+      "172.16.1.21",
+      "192.168.1.21"
+    ],
+    "replacements": {
+      "/etc/sysconfig/network-scripts/ifcfg-ens18": {
+        "TYPE": "Ethernet",
+        "BOOTPROTO": "static",
+        "DEFROUTE": "yes",
+        "IPV4_FAILURE_FATAL": "no",
+        "IPV6INIT": "yes",
+        "IPV6_AUTOCONF": "yes",
+        "IPV6_DEFROUTE": "yes",
+        "IPV6_FAILURE_FATAL": "no",
+        "NAME": "ens18",
+        "UUID": "",
+        "DEVICE": "ens18",
+        "ONBOOT": "yes",
+        "IPADDR": "172.16.1.4",
+        "PREFIX": "12",
+        "BROADCAST": "172.31.255.255",
+        "IPV6_PEERDNS": "yes",
+        "IPV6_PEERROUTES": "yes",
+        "IPV6_PRIVACY": "no",
+        "IPADDR0": "91.134.251.148",
+        "PREFIX0": "28",
+        "NETMASK0": "255.255.255.240",
+        "GATEWAY0": "91.134.251.158"
+      },
+      "/etc/sysconfig/network-scripts/ifcfg-ens19": {
+        "TYPE": "Ethernet",
+        "BOOTPROTO": "static",
+        "NAME": "ens19",
+        "UUID": "",
+        "DEVICE": "ens19",
+        "ONBOOT": "yes",
+        "IPADDR": "192.168.1.20",
+        "NETMASK": "255.255.0.0",
+        "BROADCAST": "192.168.255.255",
+        "GATEWAY": "192.168.0.254"
+      }
+    }
+  }
+}
