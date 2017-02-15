@@ -30,7 +30,7 @@ Clone the repository to any server that is able to ssh to the host, the server c
 
 Install globally
 
-    #mv clone /usr/local/bin/clone
+    #cp clone /usr/local/bin/clone
 
 ##Configuration
 
