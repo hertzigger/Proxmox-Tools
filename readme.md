@@ -4,7 +4,7 @@
 
 The main reason I developed this is because I wanted a way to automatically provision a new virtual machine with Ansible.
 
-The main issue I was facing when using template with Proxmox is they retain there ip address and there is no way (as far as I am aware) to change the ip address before creating a new vm from a template.
+The main issue I was facing when using templates with Proxmox is they retain their ip address and there isn't a way (as far as I am aware) to change the ip address before creating a new vm from a template.
 
 I did figure out that I was able to clone a template then mount the kvm image and change the network configuration on the host machine.
 
@@ -14,7 +14,7 @@ The script uses both the Proxmox API and ssh to achieve a quick and automated pr
 
 For some reason when I started this project I though it was a good time to start learning ruby.....
 
-So if you are a ruby expert you will probably find some very noob error and unfortunately I haven't got time to refactor into something that looks nice
+So if you are a ruby expert you will probably find some very noob errors and unfortunately I haven't got time to refactor into something that looks nice. So pull requests to expand the functionality or coding standards are welcome.
 
 ##Installation
 
@@ -120,7 +120,7 @@ The next section is for file replacements, ie changing the ip address etc. This 
       }
     }
     
-##running
+##Running
 
     clone --help
     Usage: clone node vmid [options]
