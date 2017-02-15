@@ -1,8 +1,4 @@
 #!/usr/bin/env ruby
-# https://www.digitalocean.com/community/tutorials/how-to-install-ruby-on-rails-with-rbenv-on-centos-7
-# gem install httparty
-# gem install net-ping
-# gem install net-ssh
 
 require 'optparse'
 require 'httparty'
@@ -12,22 +8,19 @@ require 'cgi'
 require 'net/ping'
 require 'net/ssh'
 
-def replaceLine(base, replacements, ssh)
-
-end
-
 options = OpenStruct.new
 OptionParser.new do |opt|
   opt.banner = "Usage: clone node vmid [options]"
-  opt.on('-m', '--vmid VMID', 'Virtual machine id to clone from') { |o| options.vmid = o }
-  opt.on('-e', '--node NODE', 'Proxmox deployment node') { |o| options.node = o }
+  opt.on('-m', '--vmid VMID', 'Virtual machine id to clone from.') { |o| options.vmid = o }
+  opt.on('-e', '--node NODE', 'Proxmox deployment node.') { |o| options.node = o }
   opt.on('-n', '--name NAME', 'Name for new VM.') { |o| options.name = o }
   opt.on('-d', '--description DESCRIPTION', 'New VM description.') { |o| options.description = o }
   opt.on('-s', '--storage STORAGE', 'Target storage for new VM.') { |o| options.storage = o }
-  opt.on('-u', '--username USERNAME', 'Username for proxmox API') { |o| options.username = o }
-  opt.on('-p', '--password PASSWORD', 'Password for proxmox API') { |o| options.password = o }
+  opt.on('-u', '--username USERNAME', 'Username for proxmox API.') { |o| options.username = o }
+  opt.on('-p', '--password PASSWORD', 'Password for proxmox API.') { |o| options.password = o }
   opt.on('-c', '--config CONFIG', 'Location of config (default config.json)') { |o| options.config = o }
-  opt.on('--address ADDRESS', 'Promox api address (default 127.0.0.1)') { |o| options.address = o }
+  opt.on('-g', '--vgname NAME', 'Name of volume group.') { |o| options.vgname = o }
+  opt.on('--address ADDRESS', 'Proxmox api address (default 127.0.0.1)') { |o| options.address = o }
   opt.on('--port POST', 'Proxmox api port (default 8006)') { |o| options.port = o }
   opt.on('--version VERSION', 'Proxmox api version (default api2)') { |o| options.version = o }
   opt.on('--type TYPE', 'Proxmox api type (default json)') { |o| options.type = o }
@@ -57,7 +50,7 @@ local = true
 sshHost = "127.0.0.1"
 sshPassword = "password"
 sshUsername = "username"
-
+vgname = ""
 
 
 configFilename = 'config.json'
@@ -121,6 +114,9 @@ if File.file?(configFilename)
     if configContents["instance"].include?("format")
       format = configContents["instance"]["format"]
     end
+    if configContents["instance"].include?("vgname")
+      vgname = configContents["instance"]["vgname"]
+    end
     if configContents["instance"].include?("full")
       full = configContents["instance"]["full"]
     end
@@ -173,11 +169,14 @@ end
 if options.node.to_s != ''
   node = options.node.to_s
 end
+if options.vgname.to_s != ''
+  node = options.vgname.to_s
+end
 
 proxmoxUrl = "https://#{address}:#{port}/#{version}/#{type}"
 
-if node.to_s == '' || vmid.to_s == '' || username.to_s == '' || password.to_s == ''
-  puts 'Missing some or all of the required arguments (vmid, node, username, password)'
+if node.to_s == '' || vmid.to_s == '' || username.to_s == '' || password.to_s == '' || vgname.to_s == ''
+  puts 'Missing some or all of the required arguments (vmid, node, username, password, vgname)'
   puts 'These can be passed as options or placed in the configuration file.'
   exit(1)
 end
@@ -187,6 +186,9 @@ response = HTTParty.post("#{proxmoxUrl}/access/ticket?username=#{username}@pam&p
 if response.code == 401
   puts "Authenication Failed, please check username and password. exiting"
   exit(1)
+end
+if response.code != 200
+  puts "Failed login to api. error code " + response.code
 end
 data = JSON.parse(response.response.body)["data"]
 crsf = data['CSRFPreventionToken']
@@ -252,11 +254,8 @@ end
 
 #mount vm image and change ip address
 if configContents.key?("replacements")
-  puts "attempting connection to host"
   Net::SSH.start(sshHost, sshUsername) do |session|
     puts "connected to host"
-    puts storageDirectory
-    puts imageLocation
     #Mount disc
     session.exec! "modprobe nbd max_part=8"
     session.exec! "qemu-nbd --connect=/dev/nbd0 #{imageLocation}"
@@ -273,16 +272,11 @@ if configContents.key?("replacements")
 
     # unmount disc
     session.exec! "umount #{storageDirectory}/disk"
-    session.exec! "vgchange -an centos"
+    session.exec! "vgchange -an #{vgname}"
     session.exec! "qemu-nbd -d /dev/nbd0"
     session.exec! "rm -r #{storageDirectory}/disk"
     puts "disk unmounted"
   end
-  #if local
-  #  `#{File.join(File.dirname(__FILE__),"mountvm.sh")} #{imageLocation}`
-  #  `#{File.join(File.dirname(__FILE__),"updatevmip.sh")} #{options.ip} #{imageLocation}`
-  #  `#{File.join(File.dirname(__FILE__),"umountvm.sh")} #{imageLocation}`
-  #else
 end
 #Start the machine
 response = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/status/start", :verify => false, :cookies => { PVEAuthCookie: ticket }, :headers => headers )
