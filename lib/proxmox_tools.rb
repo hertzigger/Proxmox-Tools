@@ -9,8 +9,11 @@ require 'net/ping'
 require 'net/ssh'
 
 options = OpenStruct.new
+
+outputlevel = 0;
+quietRun = 0;
 OptionParser.new do |opt|
-  opt.banner = "Usage: clone node vmid [options]"
+  opt.banner = "Usage: #{$PROGRAM_NAME} node vmid [options]"
   opt.on('-m', '--vmid VMID', 'Virtual machine id to clone from.') { |o| options.vmid = o }
   opt.on('-e', '--node NODE', 'Proxmox deployment node.') { |o| options.node = o }
   opt.on('-n', '--name NAME', 'Name for new VM.') { |o| options.name = o }
@@ -20,6 +23,8 @@ OptionParser.new do |opt|
   opt.on('-p', '--password PASSWORD', 'Password for proxmox API.') { |o| options.password = o }
   opt.on('-c', '--config CONFIG', 'Location of config (default config.json)') { |o| options.config = o }
   opt.on('-g', '--vgname NAME', 'Name of volume group.') { |o| options.vgname = o }
+  opt.on('-v', '--verbose', 'Explains what is being done') { outputlevel = 1 }
+  opt.on('-q', '--quiet', 'Silent all output except error, even if verbose') { quietRun = 1 }
   opt.on('--address ADDRESS', 'Proxmox api address (default 127.0.0.1)') { |o| options.address = o }
   opt.on('--port POST', 'Proxmox api port (default 8006)') { |o| options.port = o }
   opt.on('--version VERSION', 'Proxmox api version (default api2)') { |o| options.version = o }
@@ -51,6 +56,7 @@ sshHost = "127.0.0.1"
 sshPassword = "password"
 sshUsername = "username"
 vgname = ""
+
 
 
 configFilename = 'config.json'
@@ -237,7 +243,9 @@ storageDirectory = "";
 while loop
   response = JSON.parse HTTParty.get("#{proxmoxUrl}/nodes/#{node}/tasks/#{taskId}/log?start=#{currentLog}", :verify => false, :cookies => { PVEAuthCookie: ticket } ).response.body
   response["data"].each  do |log|
-    puts log["t"]
+    if quietRun == 0 && outputlevel == 1
+      puts log["t"]
+    end
     currentLog = log["n"].to_i
     # noinspection RubyUnusedLocalVariable
     if currentLog == 2
@@ -245,7 +253,9 @@ while loop
       storageDirectory = imageLocation.split('/')[0...-1].join('/')
     end
     if log["t"] == "TASK OK"
-      puts "New VM successfully created, image stored at #{imageLocation}"
+      if quietRun == 0
+        puts "New VM successfully created, image stored at #{imageLocation}"
+      end
       loop = false
     end
   end
@@ -255,7 +265,10 @@ end
 #mount vm image and change ip address
 if configContents.key?("replacements")
   Net::SSH.start(sshHost, sshUsername) do |session|
-    puts "connected to host"
+    if quietRun == 0
+      puts "connected to host"
+    end
+
     #Mount disc
     session.exec! "modprobe nbd max_part=8"
     session.exec! "qemu-nbd --connect=/dev/nbd0 #{imageLocation}"
@@ -266,7 +279,9 @@ if configContents.key?("replacements")
     replacements.each do |file, parts|
       parts.each do |field, value|
           session.exec! "sed -i s/^#{field}.*/#{field}=#{value}/ #{storageDirectory}/disk#{file}"
-          puts "replacing #{field}=#{value} in file #{storageDirectory}/disk#{file}"
+          if quietRun == 0 && outputlevel == 1
+            puts "replacing #{field}=#{value} in file #{storageDirectory}/disk#{file}"
+          end
       end
     end
 
@@ -275,21 +290,33 @@ if configContents.key?("replacements")
     session.exec! "vgchange -an #{vgname}"
     session.exec! "qemu-nbd -d /dev/nbd0"
     session.exec! "rm -r #{storageDirectory}/disk"
-    puts "disk unmounted"
+    if quietRun == 0
+      puts "disk unmounted"
+    end
   end
 end
 
 #Set the configs
 if configContents.key?("config")
-  response = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/config",
+  if quietRun == 0
+    puts "Sending configs"
+  end
+  request = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/config",
                            :verify => false,
                            :cookies => { PVEAuthCookie: ticket },
                            :headers => headers,
                            :query => configContents["config"]
-  ).response.body
+  )
+  if request.code != 200
+    puts 'Failed to set configs, code ' + request.code.to_s + " returned. Error details " + request.response.body
+    exit(2)
+  end
 end
 
 #Start the machine
+if quietRun == 0
+  puts "Starting Virtual Machine"
+end
 response = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/status/start", :verify => false, :cookies => { PVEAuthCookie: ticket }, :headers => headers )
 response = JSON.parse response.response.body
 taskId = response['data']
@@ -299,10 +326,14 @@ while loop < 100
   loop += 1
   response = JSON.parse HTTParty.get("#{proxmoxUrl}/nodes/#{node}/tasks/#{taskId}/log?start=#{currentLog}", :verify => false, :cookies => { PVEAuthCookie: ticket } ).response.body
   response["data"].each  do |log|
-    puts log["t"]
+    if quietRun == 0 && outputlevel == 1
+      puts log["t"]
+    end
     currentLog = log["n"].to_i
     if log["t"] == "TASK OK"
-      puts "New VM successfully started."
+      if quietRun == 0
+        puts "New VM successfully started."
+      end
       loop = 100
     end
   end
@@ -310,6 +341,9 @@ while loop < 100
 end
 
 #Validating new instance is responding to ip
+if quietRun == 0
+  puts 'Checking host is up and responding to pings'
+end
 loop = 0
 while loop < 110
   if loop == 100
@@ -318,10 +352,14 @@ while loop < 110
   end
   check = Net::Ping::External.new(ips[0])
   if check.ping?
-    puts 'Host is responding to pings. Instance created successfully.'
+    if quietRun == 0
+      puts 'Host is responding to pings. Instance created successfully.'
+    end
     exit(0)
   else
-    puts 'Not up yet, retrying'
+    if quietRun == 0 && outputlevel == 1
+      puts 'Not up yet, retrying'
+    end
   end
   sleep(1)
 end

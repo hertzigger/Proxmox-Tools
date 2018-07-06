@@ -30,7 +30,7 @@
       "cores" : "2",
       "balloon" : "256",
       "memory" : "512",
-      "onboot" : "yes",
+      "onboot" : "true",
       "sockets" : "1"
     },
     "replacements": {

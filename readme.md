@@ -30,7 +30,7 @@ Clone the repository to any server that is able to ssh to the host, the server c
 
 Install globally
 
-    #cp clone.rb /usr/local/bin/clone
+    #cp lib/proxmox_tools.rb /usr/local/bin/clone
 
 ##Configuration
 
@@ -155,7 +155,7 @@ Most of the configuration can be overwritten when running.
 
 The default config name is config.json but you can pass in a configuration file with the -c option.
 
-    clone -c config.json
+    clone -c config.json -v
     
     create full clone of drive ide0 (local:125/vm-125-disk-1.qcow2)
     Formatting '/var/lib/vz/images/137/vm-137-disk-1.qcow2', fmt=qcow2 size=10737418240 encryption=off cluster_size=65536 preallocation=metadata lazy_refcounts=off refcount_bits=16
