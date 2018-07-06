@@ -1,6 +1,6 @@
-#Proxmox Tools
+# Proxmox Tools
 
-##Description
+## Description
 
 The main reason I developed this is because I wanted a way to automatically provision a new virtual machine with Ansible.
 
@@ -16,9 +16,9 @@ For some reason when I started this project I though it was a good time to start
 
 So if you are a ruby expert you will probably find some very noob errors and unfortunately I haven't got time to refactor into something that looks nice. So pull requests to expand the functionality or coding standards are welcome.
 
-##Installation
+## Installation
 
-###Centos 7
+### Centos 7
 
 Clone the repository to any server that is able to ssh to the host, the server could even be a virtual machine of the host.
 
@@ -26,17 +26,17 @@ Clone the repository to any server that is able to ssh to the host, the server c
     #yum install epel-release ruby 
     #gem install httparty net-ping net-ssh
 
-###Optional Install
+### Optional Install
 
 Install globally
 
     #cp lib/proxmox_tools.rb /usr/local/bin/clone
 
-##Configuration
+## Configuration
 
     #cp config.example.json config.json
     
-###mount
+### mount
 
 To be able to change the ip address within the file system before starting the new virtual machine. The script needs to mount the filesystem on the hosting machine. So this section is the ssh details for the host machine. There will be the option to run it locally in the future by changing local to true. But this hasn't been implemented as I don't need it. 
 
@@ -48,7 +48,7 @@ Password login isn't supported at the moment so you need to make sure your user 
         "username": "username"
     },
 
-###proxmox api
+### proxmox api
 
 These are the credentials and location of the Proxmox api the user will need permissions to clone existing templates/vms and start vms.
 
@@ -62,7 +62,7 @@ These are the credentials and location of the Proxmox api the user will need per
         "password": "password"
     },
     
-###instance
+### instance
 
 These are the details for the new vm
 
@@ -120,7 +120,7 @@ The next section is for file replacements, ie changing the ip address etc. This 
       }
     }
     
-##Config
+## Config
 
 By including this section additional configuration options can be set on the cloned vm. If this section isn't present no configuration changes will take place.
 For further details on option please see https://pve.proxmox.com/pve-docs/api-viewer/index.html nodes >> {node} >> qemu >> {vmid} >> config >> POST
@@ -133,7 +133,7 @@ For further details on option please see https://pve.proxmox.com/pve-docs/api-vi
       "onboot" : "yes",
       "sockets" : "1"
     },    
-##Running
+## Running
 
     clone --help
     Usage: clone node vmid [options]
@@ -241,6 +241,6 @@ The default config name is config.json but you can pass in a configuration file 
     Not up yet, retrying
     Host is responding to pings. Instance created successfully.
 
-##Notices
+## Notices
 
 Please use this at your own risk, I'm not responsible for any damages that may arise from using this. You should read the code first and understand it.
