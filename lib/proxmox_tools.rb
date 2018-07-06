@@ -1,12 +1,12 @@
 #!/usr/bin/env ruby
 
 require 'optparse'
-require 'httparty'
 require 'json'
 require 'ostruct'
 require 'cgi'
 require 'net/ping'
 require 'net/ssh'
+require_relative 'proxmox_api'
 
 options = OpenStruct.new
 
@@ -179,6 +179,8 @@ if options.vgname.to_s != ''
   node = options.vgname.to_s
 end
 
+
+
 proxmoxUrl = "https://#{address}:#{port}/#{version}/#{type}"
 
 if node.to_s == '' || vmid.to_s == '' || username.to_s == '' || password.to_s == '' || vgname.to_s == ''
@@ -187,74 +189,74 @@ if node.to_s == '' || vmid.to_s == '' || username.to_s == '' || password.to_s ==
   exit(1)
 end
 
+proxmox_api = ProxmoxApi.new(address, port, version, type, false, username, password)
+clone_response = proxmox_api.clone_vm(node, vmid, name, description, storage, format, full, ips)
+
 #login to the api and get ticket and csrf token
-response = HTTParty.post("#{proxmoxUrl}/access/ticket?username=#{username}@pam&password=#{password}", :verify => false )
-if response.code == 401
-  puts "Authenication Failed, please check username and password. exiting"
-  exit(1)
-end
-if response.code != 200
-  puts "Failed login to api. error code " + response.code
-end
-data = JSON.parse(response.response.body)["data"]
-crsf = data['CSRFPreventionToken']
-ticket = data['ticket']
-response = JSON.parse HTTParty.get("#{proxmoxUrl}/cluster/nextid", :verify => false, :cookies => { PVEAuthCookie: ticket } ).response.body
-nextVmid = response['data']
-headers = {
-    "CSRFPreventionToken" => crsf
-}
-# Create url for instance clone with optional parameters
-url = "#{proxmoxUrl}/nodes/#{node}/qemu/#{vmid}/clone?newid=#{nextVmid}"
-if name != ''
-  url += "&name=" + CGI.escape(name)
-end
-if description != ''
-  url += "&description=" + CGI.escape(description)
-  url += CGI.escape("\nIP Addresses")
-  ips.each do |ip|
-    url += CGI.escape("\n" + ip)
-  end
-end
-if storage != ''
-  url += "&storage=" + CGI.escape(storage)
-end
-if format != ''
-  url += "&format=" + CGI.escape(format)
-end
-if full
-  url += "&full=1"
-end
-# Call the api to do the clone
-response = HTTParty.post(url, :verify => false, :cookies => { PVEAuthCookie: ticket }, :headers => headers )
-if response.code != 200
-  puts 'Failed to clone VM, Response ' + response.code.to_s
-  p response.body
-  exit(2)
-end
-response = JSON.parse response.response.body
-taskId = response['data']
+# response = HTTParty.post("#{proxmoxUrl}/access/ticket?username=#{username}@pam&password=#{password}", :verify => false )
+# if response.code == 401
+#   puts "Authenication Failed, please check username and password. exiting"
+#   exit(1)
+# end
+# if response.code != 200
+#   puts "Failed login to api. error code " + response.code
+# end
+# data = JSON.parse(response.response.body)["data"]
+# crsf = data['CSRFPreventionToken']
+# ticket = data['ticket']
+# response = JSON.parse HTTParty.get("#{proxmoxUrl}/cluster/nextid", :verify => false, :cookies => { PVEAuthCookie: ticket } ).response.body
+# nextVmid = response['data']
+# headers = {
+#     "CSRFPreventionToken" => crsf
+# }
+# # Create url for instance clone with optional parameters
+# url = "#{proxmoxUrl}/nodes/#{node}/qemu/#{vmid}/clone?newid=#{nextVmid}"
+# if name != ''
+#   url += "&name=" + CGI.escape(name)
+# end
+# if description != ''
+#   url += "&description=" + CGI.escape(description)
+#   url += CGI.escape("\nIP Addresses")
+#   ips.each do |ip|
+#     url += CGI.escape("\n" + ip)
+#   end
+# end
+# if storage != ''
+#   url += "&storage=" + CGI.escape(storage)
+# end
+# if format != ''
+#   url += "&format=" + CGI.escape(format)
+# end
+# if full
+#   url += "&full=1"
+# end
+# # Call the api to do the clone
+# response = HTTParty.post(url, :verify => false, :cookies => { PVEAuthCookie: ticket }, :headers => headers )
+# if response.code != 200
+#   puts 'Failed to clone VM, Response ' + response.code.to_s
+#   p response.body
+#   exit(2)
+# end
 
 # Check the status of instance, print logs and export when complete
 loop = true
-currentLog = 0
-imageLocation = "";
-storageDirectory = "";
+current_log = 0
+image_location = "";
+storage_directory = "";
 while loop
-  response = JSON.parse HTTParty.get("#{proxmoxUrl}/nodes/#{node}/tasks/#{taskId}/log?start=#{currentLog}", :verify => false, :cookies => { PVEAuthCookie: ticket } ).response.body
-  response["data"].each  do |log|
+  proxmox_api.task_log(node, clone_response.task_id, current_log)['data'].each  do |log|
     if quietRun == 0 && outputlevel == 1
-      puts log["t"]
+      p log["t"]
     end
-    currentLog = log["n"].to_i
+    current_log = log["n"].to_i
     # noinspection RubyUnusedLocalVariable
-    if currentLog == 2
-      imageLocation = log["t"].split('\'')[1]
-      storageDirectory = imageLocation.split('/')[0...-1].join('/')
+    if current_log == 2
+      image_location = log["t"].split('\'')[1]
+      storage_directory = image_location.split('/')[0...-1].join('/')
     end
     if log["t"] == "TASK OK"
       if quietRun == 0
-        puts "New VM successfully created, image stored at #{imageLocation}"
+        puts "New VM successfully created, image stored at #{image_location}"
       end
       loop = false
     end
@@ -271,25 +273,25 @@ if configContents.key?("replacements")
 
     #Mount disc
     session.exec! "modprobe nbd max_part=8"
-    session.exec! "qemu-nbd --connect=/dev/nbd0 #{imageLocation}"
+    session.exec! "qemu-nbd --connect=/dev/nbd0 #{image_location}"
     session.exec! "vgchange -ay centos"
-    session.exec! "mkdir #{storageDirectory}/disk"
-    session.exec! "mount /dev/mapper/centos-root #{storageDirectory}/disk"
+    session.exec! "mkdir #{storage_directory}/disk"
+    session.exec! "mount /dev/mapper/centos-root #{storage_directory}/disk"
     replacements = configContents["replacements"]
     replacements.each do |file, parts|
       parts.each do |field, value|
-          session.exec! "sed -i s/^#{field}.*/#{field}=#{value}/ #{storageDirectory}/disk#{file}"
+          session.exec! "sed -i s/^#{field}.*/#{field}=#{value}/ #{storage_directory}/disk#{file}"
           if quietRun == 0 && outputlevel == 1
-            puts "replacing #{field}=#{value} in file #{storageDirectory}/disk#{file}"
+            puts "replacing #{field}=#{value} in file #{storage_directory}/disk#{file}"
           end
       end
     end
 
     # unmount disc
-    session.exec! "umount #{storageDirectory}/disk"
+    session.exec! "umount #{storage_directory}/disk"
     session.exec! "vgchange -an #{vgname}"
     session.exec! "qemu-nbd -d /dev/nbd0"
-    session.exec! "rm -r #{storageDirectory}/disk"
+    session.exec! "rm -r #{storage_directory}/disk"
     if quietRun == 0
       puts "disk unmounted"
     end
@@ -306,35 +308,23 @@ if configContents.key?("config")
       puts config + " " + value
     end
   end
-  request = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/config",
-                           :verify => false,
-                           :cookies => { PVEAuthCookie: ticket },
-                           :headers => headers,
-                           :query => configContents["config"]
-  )
-  if request.code != 200
-    puts 'Failed to set configs, code ' + request.code.to_s + " returned. Error details " + request.response.body
-    exit(2)
-  end
+  proxmox_api.update_vm_config(node, clone_response.vmid, configContents["config"])
 end
 
 #Start the machine
 if quietRun == 0
   puts "Starting Virtual Machine"
 end
-response = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/status/start", :verify => false, :cookies => { PVEAuthCookie: ticket }, :headers => headers )
-response = JSON.parse response.response.body
-taskId = response['data']
+task_id = proxmox_api.start_vm(node, clone_response.vmid)
 loop = 0
-currentLog = 0
+current_log = 0
 while loop < 100
   loop += 1
-  response = JSON.parse HTTParty.get("#{proxmoxUrl}/nodes/#{node}/tasks/#{taskId}/log?start=#{currentLog}", :verify => false, :cookies => { PVEAuthCookie: ticket } ).response.body
-  response["data"].each  do |log|
+  proxmox_api.task_log(node, task_id, current_log)['data'].each  do |log|
     if quietRun == 0 && outputlevel == 1
       puts log["t"]
     end
-    currentLog = log["n"].to_i
+    current_log = log["n"].to_i
     if log["t"] == "TASK OK"
       if quietRun == 0
         puts "New VM successfully started."
