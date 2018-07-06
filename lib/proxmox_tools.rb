@@ -301,6 +301,11 @@ if configContents.key?("config")
   if quietRun == 0
     puts "Sending configs"
   end
+  if quietRun == 0 && outputlevel == 1
+    configContents["config"].each do |config, value|
+      puts config + " " + value
+    end
+  end
   request = HTTParty.post("#{proxmoxUrl}/nodes/#{node}/qemu/#{nextVmid}/config",
                            :verify => false,
                            :cookies => { PVEAuthCookie: ticket },
