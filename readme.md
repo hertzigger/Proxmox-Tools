@@ -120,6 +120,19 @@ The next section is for file replacements, ie changing the ip address etc. This 
       }
     }
     
+##Config
+
+By including this section additional configuration options can be set on the cloned vm. If this section isn't present no configuration changes will take place.
+For further details on option please see https://pve.proxmox.com/pve-docs/api-viewer/index.html nodes >> {node} >> qemu >> {vmid} >> config >> POST
+
+    "config" : {
+      "autostart" : "yes",
+      "cores" : "2",
+      "balloon" : "256",
+      "memory" : "512",
+      "onboot" : "yes",
+      "sockets" : "1"
+    },    
 ##Running
 
     clone --help

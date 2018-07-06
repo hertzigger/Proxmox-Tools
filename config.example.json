@@ -25,6 +25,14 @@
       "172.16.1.21",
       "192.168.1.21"
     ],
+    "config" : {
+      "autostart" : "yes",
+      "cores" : "2",
+      "balloon" : "256",
+      "memory" : "512",
+      "onboot" : "yes",
+      "sockets" : "1"
+    },
     "replacements": {
       "/etc/sysconfig/network-scripts/ifcfg-ens18": {
         "TYPE": "Ethernet",
